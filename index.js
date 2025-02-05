@@ -30,24 +30,35 @@ app.get('/location', (req, res) => {
 // Manejo de WebSockets
 // Cuando un cliente se conecta, puedes emitirle eventos
 io.on('connection', (socket) => {
-    console.log('Cliente conectado');
-  
-    // Enviar información cada 5 segundos al cliente
-    setInterval(() => {
-      const gpsData = {
-        latitude: 40.7128 + Math.random() * 0.001, // Ejemplo de datos GPS simulados
-        longitude: -74.0060 + Math.random() * 0.001,
-      };
-  
-      // Enviar datos al cliente conectado
-      socket.emit('locationUpdate', gpsData);
-    }, 5000);
-  
-    // Manejar desconexión
-    socket.on('disconnect', () => {
-      console.log('Cliente desconectado');
+  console.log('Cliente conectado');
+
+  // GPS Cliente
+  setInterval(() => {
+    socket.on("gpsData", (gpsData) => {
+      console.log("Ubicación recibida:", gpsData);
+
+      socket.broadcast.emit("locationUpdate", gpsData);
     });
+  }, 5000);
+
+  // Giroscopio Cliente
+  socket.on('gyroscopeData', (data) => {
+    console.log('Datos del giroscopio recibidos:', data);
+
+    socket.broadcast.emit('gyroscopeUpdate', data);
   });
+
+  //Acelerometro Cliente
+  socket.on('accelerometerData', (data) => {
+    console.log('Datos del acelerómetro recibidos:', data);
+    socket.broadcast.emit('accelerometerUpdate', data);
+  });
+
+  // Manejar desconexión
+  socket.on('disconnect', () => {
+    console.log('Cliente desconectado');
+  });
+});
 
 // Inicia el servidor
 const port = 3000;
