@@ -22,9 +22,43 @@ const corsOptions = {
 
 app.use(cors(corsOptions));  // Usamos el middleware CORS
 
-// Ejemplo de ruta REST
-app.get('/location', (req, res) => {
-  res.json({ latitude: 40.7128, longitude: -74.0060 }); // Ejemplo de respuesta
+let latestData = {
+  gps: { latitude: null, longitude: null },
+  acelerometro: { x: null, y: null, z: null },
+  giroscopio: { alpha: null, beta: null, gamma: null },
+};
+
+// ✅ Endpoint REST para recibir datos de GPS
+app.post('/gps', (req, res) => {
+  latestData.gps = req.body;
+  console.log("Datos de GPS recibidos:", req.body);
+  res.json({ status: "Datos de GPS recibidos correctamente" });
+
+  // Emitir actualización a todos los clientes WebSockets
+  io.emit("locationUpdate", req.body);
+});
+
+// ✅ Endpoint REST para recibir datos del acelerómetro
+app.post('/acelerometro', (req, res) => {
+  latestData.acelerometro = req.body;
+  console.log("Datos de acelerómetro recibidos:", req.body);
+  res.json({ status: "Datos de acelerómetro recibidos correctamente" });
+
+  io.emit("accelerometerUpdate", req.body);
+});
+
+// ✅ Endpoint REST para recibir datos del giroscopio
+app.post('/giroscopio', (req, res) => {
+  latestData.giroscopio = req.body;
+  console.log("Datos de giroscopio recibidos:", req.body);
+  res.json({ status: "Datos de giroscopio recibidos correctamente" });
+
+  io.emit("gyroscopeUpdate", req.body);
+});
+
+// ✅ Endpoint REST para obtener la última posición registrada
+app.get('/position', (req, res) => {
+  res.json(latestData);
 });
 
 // Manejo de WebSockets
