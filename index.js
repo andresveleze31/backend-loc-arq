@@ -1,97 +1,66 @@
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
-import cors from 'cors'; // Importamos el middleware CORS
+import cors from 'cors';
 
 const app = express();
+app.use(express.json()); // Para poder parsear los datos en formato JSON
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: 'http://localhost:5173',  // Permitir acceso solo desde este dominio
+    origin: 'http://localhost:5173', // Permitir solicitudes desde el cliente
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type'],
   },
 });
 
-// Middleware CORS para Express
 const corsOptions = {
-  origin: 'http://localhost:5173',  // Permitir solicitudes del frontend
+  origin: 'http://localhost:5173',  // Permitir solicitudes desde el frontend
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type'],
 };
 
-app.use(cors(corsOptions));  // Usamos el middleware CORS
+app.use(cors(corsOptions));
 
-let latestData = {
-  gps: { latitude: null, longitude: null },
-  acelerometro: { x: null, y: null, z: null },
-  giroscopio: { alpha: null, beta: null, gamma: null },
-};
-
-// ✅ Endpoint REST para recibir datos de GPS
-app.post('/gps', (req, res) => {
-  latestData.gps = req.body;
-  console.log("Datos de GPS recibidos:", req.body);
-  res.json({ status: "Datos de GPS recibidos correctamente" });
-
-  // Emitir actualización a todos los clientes WebSockets
-  io.emit("locationUpdate", req.body);
-});
-
-// ✅ Endpoint REST para recibir datos del acelerómetro
-app.post('/acelerometro', (req, res) => {
-  latestData.acelerometro = req.body;
-  console.log("Datos de acelerómetro recibidos:", req.body);
-  res.json({ status: "Datos de acelerómetro recibidos correctamente" });
-
-  io.emit("accelerometerUpdate", req.body);
-});
-
-// ✅ Endpoint REST para recibir datos del giroscopio
-app.post('/giroscopio', (req, res) => {
-  latestData.giroscopio = req.body;
-  console.log("Datos de giroscopio recibidos:", req.body);
-  res.json({ status: "Datos de giroscopio recibidos correctamente" });
-
-  io.emit("gyroscopeUpdate", req.body);
-});
-
-// ✅ Endpoint REST para obtener la última posición registrada
-app.get('/position', (req, res) => {
-  res.json(latestData);
-});
-
-// Manejo de WebSockets
-// Cuando un cliente se conecta, puedes emitirle eventos
+// Cuando un cliente se conecta, escuchamos por el evento `sendLocation`
 io.on('connection', (socket) => {
   console.log('Cliente conectado');
 
-  // GPS Cliente
-  setInterval(() => {
-    socket.on("gpsData", (gpsData) => {
-      console.log("Ubicación recibida:", gpsData);
+  // Escuchar el evento 'sendLocation' enviado desde el cliente
+  socket.on('sendLocation', (locationData) => {
+    console.log('Datos recibidos del cliente:', locationData);
 
-      socket.broadcast.emit("locationUpdate", gpsData);
-    });
-  }, 5000);
-
-  // Giroscopio Cliente
-  socket.on('gyroscopeData', (data) => {
-    console.log('Datos del giroscopio recibidos:', data);
-
-    socket.broadcast.emit('gyroscopeUpdate', data);
-  });
-
-  //Acelerometro Cliente
-  socket.on('accelerometerData', (data) => {
-    console.log('Datos del acelerómetro recibidos:', data);
-    socket.broadcast.emit('accelerometerUpdate', data);
+    // Aquí podemos modificar o procesar los datos si es necesario
+    // Luego enviamos los mismos datos de vuelta al cliente
+    socket.emit('locationUpdate', locationData);
   });
 
   // Manejar desconexión
   socket.on('disconnect', () => {
     console.log('Cliente desconectado');
   });
+});
+
+app.post('/location', (req, res) => {
+  const { latitude, longitude } = req.body;
+
+  // Devuelve los mismos datos recibidos
+  res.json({
+    latitude: latitude,
+    longitude: longitude,
+  });
+});
+
+app.get('/location-http', (req, res) => {
+  // Simulando un cambio en la ubicación
+  const location = {
+    latitude: 40.7128 + Math.random() * 0.001, // Datos GPS simulados
+    longitude: -74.0060 + Math.random() * 0.001,
+  };
+
+  // Responder con los datos de ubicación
+  res.json(location);
 });
 
 // Inicia el servidor
